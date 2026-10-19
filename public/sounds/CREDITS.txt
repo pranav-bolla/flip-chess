@@ -1,0 +1,22 @@
+FLIP Chess sound credits
+========================
+
+All samples are trimmed, faded and peak-normalized excerpts of field
+recordings released under Creative Commons Zero (CC0 1.0, public domain).
+Attribution is not required by CC0 but is given here with thanks.
+
+move-1.wav, move-2.wav, move-3.wav, capture.wav
+    "Chess_foley.mp3" by Amatsuuu
+    https://freesound.org/people/Amatsuuu/sounds/629181/
+
+check.wav
+    "Chess_foley_1.mp3" by Amatsuuu
+    https://freesound.org/people/Amatsuuu/sounds/629182/
+
+mate.wav
+    Mix of excerpts from both Amatsuuu recordings above
+    (a final placement followed by a piece toppling).
+
+Castling plays two move samples 85 ms apart.
+
+License: https://creativecommons.org/publicdomain/zero/1.0/
