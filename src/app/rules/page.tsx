@@ -8,7 +8,7 @@ const RULES = [
   ["Winning", "Checkmate with whichever color you hold. If Stockfish mates you, you lose. Draws work as in normal chess, and the game ends the moment it’s decided."],
   ["Timing", "Flips are drawn at random before the game, at least three moves apart, and never depend on who’s winning. After the last one it’s ordinary chess."],
   ["Turn order", "A flip never skips a turn. If it’s White to move and you’ve just become Black, Stockfish moves first."],
-  ["Flip Duel", "Play a friend online. Everyone can see the countdown: after every few full moves (White then Black), you swap sides. Checkmate with whichever color you hold."],
+  ["Flip Duel", "Play a friend online. At one secret moment, right after Black moves, you swap sides for good. Nobody knows when, so wrecking your own position is a gamble. Checkmate with whichever color you hold."],
   ["Daily", "Everyone starts from the same named position, with the same color, difficulty and flip schedule. One attempt, tracked in this browser."],
 ] as const;
 

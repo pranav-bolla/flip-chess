@@ -1,4 +1,3 @@
-import type { DuelConfig } from "./rules";
 import type { RoomError, RoomSnapshot } from "./rooms";
 import type { PromotionPiece } from "../types";
 
@@ -7,7 +6,7 @@ import type { PromotionPiece } from "../types";
 export type Ack<T = object> = (res: ({ ok: true } & T) | { ok: false; error: RoomError }) => void;
 
 export interface ClientToServer {
-  "room:create": (p: { token: string; name: string; config: DuelConfig }, ack: Ack<{ code: string }>) => void;
+  "room:create": (p: { token: string; name: string }, ack: Ack<{ code: string }>) => void;
   "room:join": (p: { code: string; token: string; name: string }, ack: Ack<{ snapshot: RoomSnapshot }>) => void;
   "game:move": (p: { code: string; gameId: string; from: string; to: string; promotion?: PromotionPiece }, ack: Ack) => void;
   "game:resign": (p: { code: string; gameId: string }, ack: Ack) => void;

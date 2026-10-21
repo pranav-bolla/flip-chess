@@ -2,13 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Segmented } from "../Segmented";
 import { createRoom, ERROR_TEXT, getSavedName, saveName } from "@/lib/client/duel-client";
-import { updatePrefs, usePrefs, useHydrated } from "@/lib/client/prefs";
-import { FLIP_EVERY_LIMITS } from "@/lib/duel/rules";
-
-const PRESETS = [3, 5, 10];
-const MAX_FLIP_OPTIONS = [null, 3, 5, 10] as const;
+import { useHydrated } from "@/lib/client/prefs";
 
 export function DuelCreate() {
   const hydrated = useHydrated();
@@ -18,15 +13,11 @@ export function DuelCreate() {
 
 function DuelCreateInner() {
   const router = useRouter();
-  const prefs = usePrefs();
-  const cfg = prefs.duel;
   const [name, setName] = useState(getSavedName);
-  const [custom, setCustom] = useState(!PRESETS.includes(cfg.flipEvery));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
 
-  const setFlipEvery = (n: number) => updatePrefs({ duel: { ...cfg, flipEvery: Math.max(FLIP_EVERY_LIMITS.min, Math.min(FLIP_EVERY_LIMITS.max, Math.round(n) || 5)) } });
   const clean = name.trim().slice(0, 20);
   const code = joinCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 
@@ -36,7 +27,7 @@ function DuelCreateInner() {
     setError(null);
     saveName(clean);
     try {
-      const roomCode = await createRoom(clean, cfg);
+      const roomCode = await createRoom(clean);
       router.push(`/duel/${roomCode}`);
     } catch (e) {
       const key = (e as Error).message as keyof typeof ERROR_TEXT;
@@ -48,7 +39,7 @@ function DuelCreateInner() {
   return (
     <div className="mx-auto w-full max-w-md px-4 py-10 sm:px-6 sm:py-14">
       <h1 className="text-[32px] font-semibold tracking-[-0.02em]">Flip Duel</h1>
-      <p className="mt-1 text-[16px] text-muted">Every {cfg.flipEvery} moves you swap sides with your friend. Make sure they inherit something awful.</p>
+      <p className="mt-1 text-[16px] text-muted">At one secret moment you swap sides with your friend, for good. It could be any move, so don&apos;t wreck what might become yours.</p>
 
       <div className="mt-8 space-y-4">
         <div>
@@ -63,38 +54,6 @@ function DuelCreateInner() {
             className="h-10 w-full rounded-md border border-line bg-transparent px-3 text-[14px] outline-none transition-colors focus:border-white/25"
           />
         </div>
-        <Segmented<number | "custom">
-          label="Flip every"
-          value={custom ? "custom" : cfg.flipEvery}
-          onChange={(v) => {
-            if (v === "custom") setCustom(true);
-            else {
-              setCustom(false);
-              setFlipEvery(v);
-            }
-          }}
-          options={[...PRESETS.map((n) => ({ value: n, label: `${n} moves` })), { value: "custom" as const, label: "Custom" }]}
-        />
-        {custom && (
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={FLIP_EVERY_LIMITS.min}
-              max={FLIP_EVERY_LIMITS.max}
-              value={cfg.flipEvery}
-              onChange={(e) => setFlipEvery(Number(e.target.value))}
-              className="h-9 w-20 rounded-md border border-line bg-transparent px-3 text-[14px] tabular-nums outline-none focus:border-white/25"
-              aria-label="Full moves between flips"
-            />
-            <span className="text-[13px] text-muted">full moves between flips</span>
-          </div>
-        )}
-        <Segmented<number | "unlimited">
-          label="Total flips"
-          value={cfg.maxFlips ?? "unlimited"}
-          onChange={(v) => updatePrefs({ duel: { ...cfg, maxFlips: v === "unlimited" ? null : v } })}
-          options={MAX_FLIP_OPTIONS.map((n) => ({ value: n ?? ("unlimited" as const), label: n ?? "Unlimited" }))}
-        />
         <button onClick={create} disabled={!clean || busy} className="btn btn-primary h-10 w-full text-[14px]">
           {busy ? "Creating…" : "Create private room"}
         </button>

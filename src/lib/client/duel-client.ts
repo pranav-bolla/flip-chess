@@ -4,7 +4,6 @@ import { io, type Socket } from "socket.io-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SOCKET_PATH, type ClientToServer, type ServerToClient } from "../duel/protocol";
 import type { RoomError, RoomSnapshot } from "../duel/rooms";
-import type { DuelConfig } from "../duel/rules";
 import type { PromotionPiece } from "../types";
 
 type DuelSocket = Socket<ServerToClient, ClientToServer>;
@@ -55,11 +54,11 @@ function withTimeout<T>(p: Promise<T>, ms = 8000): Promise<T> {
   return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))]);
 }
 
-export async function createRoom(name: string, config: DuelConfig): Promise<string> {
+export async function createRoom(name: string): Promise<string> {
   const s = getSocket();
   const res = await withTimeout(
     new Promise<Parameters<Parameters<ClientToServer["room:create"]>[1]>[0]>((resolve) =>
-      s.emit("room:create", { token: getToken(), name, config }, resolve),
+      s.emit("room:create", { token: getToken(), name }, resolve),
     ),
   );
   if (!res.ok) throw new Error(res.error);

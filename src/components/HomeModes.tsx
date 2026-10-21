@@ -38,18 +38,6 @@ function SplitKing() {
   );
 }
 
-/** Five segments counting down to a gold flip. */
-function MiniCountdown() {
-  return (
-    <span className="flex items-center gap-[3px]" aria-hidden>
-      {[0, 1, 2, 3].map((i) => (
-        <span key={i} className="h-[3px] w-2.5 rounded-full bg-white/25" />
-      ))}
-      <span className="h-[3px] w-2.5 rounded-full bg-flip" />
-    </span>
-  );
-}
-
 export function HomeModes() {
   const hydrated = useHydrated();
   // The daily number and status depend on the local date and storage, so they're client-only.
@@ -68,8 +56,7 @@ export function HomeModes() {
         highlight
         glyph={<SplitKing />}
         title="Flip Duel"
-        meta={<MiniCountdown />}
-        description="Play a friend online. Watch the countdown, then hand them a wreck."
+        description="Play a friend online. One secret flip, and then you keep what you get."
       />
       <Row
         href="/daily"

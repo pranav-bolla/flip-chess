@@ -9,13 +9,13 @@ import { FlipLabel, FlipOverlay } from "../FlipOverlay";
 import { PlayerLine } from "../GameBits";
 import { MoveList, MoveStrip } from "../MoveList";
 import { useApp } from "../AppProvider";
-import { DuelCountdown } from "./DuelCountdown";
+import { DuelFlipStatus } from "./DuelFlipStatus";
 import { DuelResults } from "./DuelResults";
 import { NamePrompt } from "./NamePrompt";
 import { getSavedName, saveName, useDuelRoom } from "@/lib/client/duel-client";
 import { usePrefs, useHydrated } from "@/lib/client/prefs";
 import { pieceIdentities, replay, toMoveRecord, tryMove } from "@/lib/chess/rules";
-import { colorOfSeat, colorOfSeatAtPly, countdown, seatOfColor, type DuelGame, type DuelMove, type Seat } from "@/lib/duel/rules";
+import { colorOfSeat, colorOfSeatAtPly, seatOfColor, type DuelGame, type DuelMove, type Seat } from "@/lib/duel/rules";
 import type { RoomSnapshot } from "@/lib/duel/rooms";
 import type { FlipAnimation } from "@/lib/game/controller";
 import { copyText } from "@/lib/game/share";
@@ -106,8 +106,7 @@ function DuelTable({ snap, room }: { snap: RoomSnapshot; room: Room }) {
     setSeen({ gameId: game.id, flips: game.flips.length });
     if (seen.gameId !== game.id) setViewPly(null);
     if (isNewFlip && you !== null) {
-      const final = game.config.maxFlips !== null && game.flips.length >= game.config.maxFlips;
-      setFlipAnim({ id: game.flips.length, toColor: colorOfSeat(game, mySeat), final });
+      setFlipAnim({ id: game.flips.length, toColor: colorOfSeat(game, mySeat), final: true });
     }
   }
   // The server refuses moves until its post-flip lock lifts; mirror that locally.
@@ -204,7 +203,6 @@ function DuelTable({ snap, room }: { snap: RoomSnapshot; room: Room }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [shownPly, step]);
 
-  const c = countdown(game);
   const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/duel/${snap.code}` : "";
   const copyInvite = async () => {
     setCopied(await copyText(inviteUrl));
@@ -277,7 +275,7 @@ function DuelTable({ snap, room }: { snap: RoomSnapshot; room: Room }) {
       <FlipOverlay flip={flipAnim} />
       <div className="mx-auto w-full max-w-5xl px-3 pb-8 pt-1 sm:px-6 sm:pt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_232px] lg:gap-12 lg:pt-4">
         <section className="mx-auto w-full" style={{ maxWidth: "min(100%, max(320px, calc(100dvh - 14rem)), 660px)" }} aria-label="Flip Duel">
-          <DuelCountdown c={c} flipEvery={game.config.flipEvery} flipping={!!flipAnim} over={!!game.result} flips={game.flips.length} />
+          <DuelFlipStatus flip={game.flips[0]} flipping={!!flipAnim} over={!!game.result} />
           <PlayerLine name={opp?.name ?? "Opponent"} color={opponentColor} toMove={theirTurn} status={oppStatus} />
 
           <div className={`relative ${flipAnim ? "z-50" : ""}`}>

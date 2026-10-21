@@ -9,14 +9,15 @@ export function duelShareText(snap: RoomSnapshot, origin?: string): string {
   if (r.winnerSeat === null) headline = "🤝 DRAW";
   else if (you === null) headline = `🏆 ${name(r.winnerSeat)} won`;
   else headline = r.winnerSeat === you ? `🏆 WIN vs ${name(you === 0 ? 1 : 0)}` : `💀 LOSS vs ${name(you === 0 ? 1 : 0)}`;
-  const flips = game.flips.length ? Array(Math.min(game.flips.length, 12)).fill("🔄").join(" ") + (game.flips.length > 12 ? ` ×${game.flips.length}` : "") : "🚫 no flips";
+  const flip = game.flips[0];
+  const flips = flip ? `🔄 flipped after move ${flip.ply / 2}` : "🚫 ended before the flip";
   const lines = [
     "FLIP CHESS ♟️",
     "Flip Duel",
     "",
     headline,
     flips,
-    `⏱️ ${Math.max(1, Math.ceil(game.moves.length / 2))} moves · flip every ${game.config.flipEvery}`,
+    `⏱️ ${Math.max(1, Math.ceil(game.moves.length / 2))} moves`,
     "",
     "Build the worst position. Hand it to your friend.",
   ];

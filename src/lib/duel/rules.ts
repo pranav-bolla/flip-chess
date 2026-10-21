@@ -3,8 +3,11 @@ import { detectResult, replay, toMoveRecord, tryMove } from "../chess/rules";
 import type { Color, EndReason, MoveRecord, PromotionPiece } from "../types";
 
 /**
- * Flip Duel: two people, one board, and a public countdown. After every
- * `flipEvery` completed full moves (White then Black), the players swap colors.
+ * Flip Duel: two people, one board, and exactly one flip. The server picks a
+ * random full move in FLIP_WINDOW when the game starts and keeps it secret;
+ * right after Black completes that move, the players swap colors for good.
+ * Nobody knows when it's coming, so throwing your own position away is a
+ * gamble rather than a plan.
  *
  * This module is pure and shared by the server (authoritative) and the client
  * (display only). Chess turn order comes from the position; seat ownership of
@@ -14,16 +17,14 @@ import type { Color, EndReason, MoveRecord, PromotionPiece } from "../types";
 /** Seat 0 created the room; seat 1 joined. */
 export type Seat = 0 | 1;
 
-export interface DuelConfig {
-  /** Full moves between flips. */
-  flipEvery: number;
-  /** Total flips allowed, or null for unlimited. */
-  maxFlips: number | null;
-}
+/** Full moves (inclusive) the secret flip is drawn from. */
+export const FLIP_WINDOW = { earliest: 6, latest: 20 } as const;
 
-export const DEFAULT_DUEL_CONFIG: DuelConfig = { flipEvery: 5, maxFlips: null };
-export const FLIP_EVERY_LIMITS = { min: 1, max: 30 } as const;
-export const MAX_FLIPS_LIMITS = { min: 1, max: 50 } as const;
+/** Draw the secret flip point: the ply right after Black completes a random full move in the window. */
+export function randomFlipPly(random: () => number = Math.random): number {
+  const span = FLIP_WINDOW.latest - FLIP_WINDOW.earliest + 1;
+  return 2 * (FLIP_WINDOW.earliest + Math.floor(random() * span));
+}
 
 export interface DuelMove extends Omit<MoveRecord, "by"> {
   /** Seat that made the move. */
@@ -45,12 +46,12 @@ export interface DuelResult {
 
 export interface DuelGame {
   id: string;
-  config: DuelConfig;
   /** Seat that started as White. */
   startWhiteSeat: Seat;
   /** Seat controlling White right now. */
   whiteSeat: Seat;
   moves: DuelMove[];
+  /** At most one flip; empty until it happens. The planned ply is never part of the game state. */
   flips: DuelFlip[];
   result: DuelResult | null;
   /** Server time (ms) until which moves are refused while the flip plays out. */
@@ -76,51 +77,8 @@ export function colorOfSeatAtPly(game: Pick<DuelGame, "startWhiteSeat" | "flips"
   return white === seat ? "w" : "b";
 }
 
-export function validateConfig(input: unknown): DuelConfig | null {
-  if (!input || typeof input !== "object") return null;
-  const { flipEvery, maxFlips } = input as Record<string, unknown>;
-  if (!Number.isInteger(flipEvery) || (flipEvery as number) < FLIP_EVERY_LIMITS.min || (flipEvery as number) > FLIP_EVERY_LIMITS.max) return null;
-  if (maxFlips !== null && (!Number.isInteger(maxFlips) || (maxFlips as number) < MAX_FLIPS_LIMITS.min || (maxFlips as number) > MAX_FLIPS_LIMITS.max)) return null;
-  return { flipEvery: flipEvery as number, maxFlips: maxFlips as number | null };
-}
-
-export function newDuelGame(id: string, config: DuelConfig, startWhiteSeat: Seat = 0): DuelGame {
-  return { id, config, startWhiteSeat, whiteSeat: startWhiteSeat, moves: [], flips: [], result: null, flipLockUntil: 0 };
-}
-
-// ── Countdown ─────────────────────────────────────────────────────────
-
-/** Completed full moves (a White move followed by a Black move). Duels start from the initial position. */
-export function completedFullMoves(plies: number): number {
-  return Math.floor(plies / 2);
-}
-
-export interface Countdown {
-  /** Full moves still to complete before the next flip (≥1), or null when no flips remain. */
-  movesLeft: number | null;
-  /** Full moves completed since the last flip (for the progress bar). */
-  progress: number;
-  /** True when White has already moved in the final full move: the flip comes after Black's move. */
-  flipAfterThisBlackMove: boolean;
-  flipsLeft: number | null;
-}
-
-export function countdown(game: Pick<DuelGame, "config" | "flips" | "moves" | "result">): Countdown {
-  const { flipEvery, maxFlips } = game.config;
-  const flipsLeft = maxFlips === null ? null : Math.max(0, maxFlips - game.flips.length);
-  const sinceLast = completedFullMoves(game.moves.length) - (game.flips.length ? completedFullMoves(game.flips[game.flips.length - 1].ply) : 0);
-  if (flipsLeft === 0 || game.result) return { movesLeft: null, progress: sinceLast, flipAfterThisBlackMove: false, flipsLeft };
-  const movesLeft = flipEvery - sinceLast;
-  return { movesLeft, progress: sinceLast, flipAfterThisBlackMove: movesLeft === 1 && game.moves.length % 2 === 1, flipsLeft };
-}
-
-/** Whether a flip is due right now — only ever true just after Black's move completes. */
-export function isDuelFlipDue(game: Pick<DuelGame, "config" | "flips" | "moves" | "result">): boolean {
-  if (game.result || game.moves.length === 0 || game.moves.length % 2 !== 0) return false;
-  const last = game.flips[game.flips.length - 1];
-  if (last && last.ply === game.moves.length) return false; // never twice at the same boundary
-  const c = countdown({ ...game, result: null });
-  return c.movesLeft === 0;
+export function newDuelGame(id: string, startWhiteSeat: Seat = 0): DuelGame {
+  return { id, startWhiteSeat, whiteSeat: startWhiteSeat, moves: [], flips: [], result: null, flipLockUntil: 0 };
 }
 
 // ── Actions (server-authoritative) ───────────────────────────────────
@@ -135,7 +93,7 @@ export interface MoveOutcome {
 /**
  * Apply a seat's move. `chess` must be the game's current position and is
  * mutated on success. Order of operations: validate → move → detect game end
- * → flip (only if the game continues).
+ * → flip (only at `flipAtPly`, only once, and only if the game continues).
  */
 export function applyDuelMove(
   game: DuelGame,
@@ -146,6 +104,7 @@ export function applyDuelMove(
   promotion: PromotionPiece | undefined,
   now: number,
   flipLockMs: number,
+  flipAtPly: number,
 ): MoveOutcome | MoveRejection {
   if (game.result) return "game-over";
   if (now < game.flipLockUntil) return "flip-in-progress";
@@ -164,7 +123,7 @@ export function applyDuelMove(
     return { game: next, flipped: false };
   }
 
-  if (isDuelFlipDue(next)) {
+  if (next.flips.length === 0 && next.moves.length === flipAtPly) {
     const whiteSeat = otherSeat(next.whiteSeat);
     next = { ...next, whiteSeat, flips: [...next.flips, { ply: next.moves.length, whiteSeat }], flipLockUntil: now + flipLockMs };
     return { game: next, flipped: true };

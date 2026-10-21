@@ -5,8 +5,8 @@ import {
   duelPosition,
   newDuelGame,
   otherSeat,
+  randomFlipPly,
   resignDuel,
-  type DuelConfig,
   type DuelGame,
   type MoveRejection,
   type Seat,
@@ -16,6 +16,7 @@ import {
  * In-memory private rooms. The server is the only authority: clients send
  * intents (move, resign, rematch) and receive snapshots. Player identity is a
  * random token kept in the player's browser; it is never sent to anyone else.
+ * Neither is the planned flip ply.
  */
 
 export const FLIP_LOCK_MS = 1300;
@@ -34,6 +35,8 @@ interface Room {
   players: [Player | null, Player | null];
   game: DuelGame;
   chess: Chess;
+  /** Secret: the ply after which the one flip happens. Never sent to clients. */
+  flipAtPly: number;
   rematch: Set<Seat>;
   gameCounter: number;
   lastActive: number;
@@ -62,6 +65,7 @@ export class RoomStore {
   constructor(
     private now: () => number = () => Date.now(),
     private random: () => number = Math.random,
+    private pickFlipPly: () => number = () => randomFlipPly(random),
   ) {}
 
   private newCode(): string {
@@ -72,14 +76,15 @@ export class RoomStore {
     }
   }
 
-  create(token: string, name: string, config: DuelConfig): string {
+  create(token: string, name: string): string {
     const code = this.newCode();
-    const game = newDuelGame(`${code}-1`, config, 0);
+    const game = newDuelGame(`${code}-1`, 0);
     this.rooms.set(code, {
       code,
       players: [{ token, name, connections: 0 }, null],
       game,
       chess: duelPosition(game),
+      flipAtPly: this.pickFlipPly(),
       rematch: new Set(),
       gameCounter: 1,
       lastActive: this.now(),
@@ -126,7 +131,7 @@ export class RoomStore {
     if (seat === null) return "not-seated";
     if (!room.players[0] || !room.players[1]) return "waiting-for-opponent";
     if (gameId !== room.game.id) return "game-over"; // a stale move for a finished game
-    const out = applyDuelMove(room.game, room.chess, seat, from, to, promotion, this.now(), FLIP_LOCK_MS);
+    const out = applyDuelMove(room.game, room.chess, seat, from, to, promotion, this.now(), FLIP_LOCK_MS, room.flipAtPly);
     if (typeof out === "string") return out;
     room.game = out.game;
     room.rematch.clear();
@@ -157,8 +162,9 @@ export class RoomStore {
     room.rematch.add(seat);
     if (room.rematch.size < 2) return { started: false };
     room.gameCounter += 1;
-    room.game = newDuelGame(`${code}-${room.gameCounter}`, room.game.config, otherSeat(room.game.startWhiteSeat));
+    room.game = newDuelGame(`${code}-${room.gameCounter}`, otherSeat(room.game.startWhiteSeat));
     room.chess = duelPosition(room.game);
+    room.flipAtPly = this.pickFlipPly();
     room.rematch.clear();
     room.lastActive = this.now();
     return { started: true };

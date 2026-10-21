@@ -10,7 +10,6 @@ import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import { RoomStore, ROOM_CODE_RE, FLIP_LOCK_MS } from "./src/lib/duel/rooms";
-import { validateConfig } from "./src/lib/duel/rules";
 import { SOCKET_PATH, type ClientToServer, type ServerToClient } from "./src/lib/duel/protocol";
 import type { PromotionPiece } from "./src/lib/types";
 
@@ -61,9 +60,8 @@ io.on("connection", (socket) => {
 
   socket.on("room:create", (p, ack) => {
     if (typeof ack !== "function") return;
-    const config = validateConfig(p?.config);
-    if (!isToken(p?.token) || !config) return ack({ ok: false, error: "bad-request" });
-    const code = rooms.create(p.token, cleanName(p.name), config);
+    if (!isToken(p?.token)) return ack({ ok: false, error: "bad-request" });
+    const code = rooms.create(p.token, cleanName(p.name));
     ack({ ok: true, code });
   });
 

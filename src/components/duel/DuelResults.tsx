@@ -40,7 +40,7 @@ export function DuelResults({
     ["Winner", winner === null ? "—" : name(winner)],
     ["Winning color", r.winningColor ? colorName(r.winningColor) : "—"],
     ["Moves", String(Math.max(1, Math.ceil(game.moves.length / 2)))],
-    ["Flips", String(game.flips.length)],
+    ["Flip", game.flips[0] ? `After move ${game.flips[0].ply / 2}` : "Never came"],
     [`${name(0)} finished as`, colorName(colorOfSeat(game, 0))],
     [`${name(1)} finished as`, colorName(colorOfSeat(game, 1))],
     ["Ended by", END_REASON_LABEL[r.reason]],

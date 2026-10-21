@@ -1,5 +1,4 @@
 import type { GameRecord, GameSettings } from "../types";
-import { DEFAULT_DUEL_CONFIG, type DuelConfig } from "../duel/rules";
 import type { GameSummary } from "../game/summary";
 
 /**
@@ -18,7 +17,6 @@ export type MotionPref = "full" | "reduced" | "off";
 
 export interface Preferences {
   setup: GameSettings;
-  duel: DuelConfig;
   sound: boolean;
   motion: MotionPref;
   showCoordinates: boolean;
@@ -27,7 +25,6 @@ export interface Preferences {
 
 export const DEFAULT_PREFS: Preferences = {
   setup: { startChoice: "w", flips: 3, difficulty: "casual" },
-  duel: DEFAULT_DUEL_CONFIG,
   sound: true,
   motion: "full",
   showCoordinates: true,
@@ -54,7 +51,7 @@ function write(key: string, value: unknown) {
 
 export function loadPrefs(): Preferences {
   const p = read<Partial<Preferences>>(KEYS.prefs);
-  return { ...DEFAULT_PREFS, ...p, setup: { ...DEFAULT_PREFS.setup, ...p?.setup }, duel: { ...DEFAULT_PREFS.duel, ...p?.duel } };
+  return { ...DEFAULT_PREFS, ...p, setup: { ...DEFAULT_PREFS.setup, ...p?.setup } };
 }
 export const savePrefs = (p: Preferences) => write(KEYS.prefs, p);
 

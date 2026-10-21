@@ -18,7 +18,7 @@ npm run build && npm start
 ## Modes
 
 - **Classic Flip** — play Stockfish; control swaps at hidden, random moments.
-- **Flip Duel** — play a friend online in a private room. A public countdown shows how many full moves remain until you swap sides (every 3/5/10/custom moves, optionally capped).
+- **Flip Duel** — play a friend online in a private room. There is exactly one flip, at a secret random full move (6–20) that only the server knows. After it you keep your new side for good, so nobody can wreck a position knowing they'll get theirs back.
 - **Daily Flip** — everyone starts from the same named position (30 opening middlegames, each checked with Stockfish to be within a pawn of equal), with the same color, difficulty and hidden flip schedule.
 
 ## Stack
@@ -38,7 +38,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · chess.js 
 | Persistence (prefs, active game, history, daily) | `src/lib/storage/storage.ts` |
 | Results, share text, PGN with flip metadata | `src/lib/game/{summary,share,pgn}.ts` |
 | Sound playback (recorded samples, Web Audio) | `src/lib/audio/sound.ts` |
-| Flip Duel rules: countdown, seat ownership, results | `src/lib/duel/rules.ts` |
+| Flip Duel rules: the secret flip, seat ownership, results | `src/lib/duel/rules.ts` |
 | Flip Duel rooms (server-authoritative state) | `src/lib/duel/rooms.ts`, `server.ts` |
 | Flip Duel client connection | `src/lib/client/duel-client.ts` |
 | Daily positions | `src/lib/daily/positions.ts` |
@@ -48,7 +48,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · chess.js 
 
 **Difficulty.** Stockfish's own *Skill Level* is seeded from the clock, so it isn't reproducible. Instead each level sets a fixed search depth and a MultiPV count, and the game picks among the top lines with a softmax seeded by `(game seed, FEN, level)`. The hash is cleared before every search, so a given position with the same settings always gets the same move. Daily Flip relies on this.
 
-**Flip Duel.** The server is the only authority. Browsers send intents (a move, resign, rematch), and the server checks them with chess.js, applies flips, decides results, and sends both players the same snapshot. A flip happens only after Black's move completes, and only if that move didn't end the game. It is recorded once, by the server, so refreshing or reconnecting can never duplicate it. Moves are refused for 1.3 s after a flip while the board turns. Each browser holds a random token that keeps its seat across refreshes; tokens are never sent to the other player.
+**Flip Duel.** The server is the only authority. Browsers send intents (a move, resign, rematch), and the server checks them with chess.js, applies flips, decides results, and sends both players the same snapshot. The server draws the flip ply when each game starts and never includes it in snapshots. The flip happens only after Black's move completes, and only if that move didn't end the game. It is recorded once, by the server, so refreshing or reconnecting can never duplicate it. Moves are refused for 1.3 s after a flip while the board turns. Each browser holds a random token that keeps its seat across refreshes; tokens are never sent to the other player.
 
 **Daily Flip.** The local calendar date seeds the starting color, AI level, flip count, flip schedule and AI choices. You get one official attempt, tracked in localStorage. That tracking is not cheat-proof, and the page says so.
 
